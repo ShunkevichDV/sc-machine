@@ -1071,8 +1071,10 @@ eSctpErrorCode sctpCommand::processIterateElements(quint32 cmdFlags, quint32 cmd
             return SCTP_ERROR;
         }
 
-        if (it == null_ptr)
+        if (it == null_ptr) {
             writeResultHeader(SCTP_CMD_ITERATE_ELEMENTS, cmdId, SCTP_RESULT_FAIL, 0, outDevice);
+            return SCTP_ERROR;
+        }
 
         // create results data
         QByteArray results;
@@ -1165,9 +1167,10 @@ eSctpErrorCode sctpCommand::processIterateElements(quint32 cmdFlags, quint32 cmd
             return SCTP_ERROR;
         }
 
-        if (it == null_ptr)
+        if (it == null_ptr) {
             writeResultHeader(SCTP_CMD_ITERATE_ELEMENTS, cmdId, SCTP_RESULT_FAIL, 0, outDevice);
-
+            return SCTP_ERROR;
+        }
         // create results data
         QByteArray results;
         QBuffer buffer(&results);
