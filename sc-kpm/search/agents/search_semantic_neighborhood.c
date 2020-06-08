@@ -14,6 +14,52 @@
 #include <sc_memory_headers.h>
 #include <stdio.h>
 
+#define TYPE_EQUALS(first_type, second_type)  (first_type & second_type)
+
+sc_bool is_of_type(sc_addr element, sc_type type) {
+  sc_type element_type;
+  if (SC_RESULT_OK != sc_memory_get_element_type(s_default_ctx, element, &element_type)) return SC_FALSE;
+
+  return TYPE_EQUALS(element_type, type);
+}
+
+sc_bool in_struct(sc_addr context_struct,  sc_addr element) {
+  if (SC_ADDR_IS_EMPTY(context_struct) || SC_ADDR_IS_EMPTY(element)) return SC_FALSE;
+  if (!is_of_type(context_struct, sc_type_node_struct)) return SC_FALSE;
+
+  return sc_helper_check_arc(s_default_ctx, context_struct, element, sc_type_arc_pos_const_perm) == SC_TRUE;
+}
+
+sc_bool in_class(sc_addr context_class, sc_addr element) {
+  if (SC_ADDR_IS_EMPTY(context_class) || SC_ADDR_IS_EMPTY(element)) return SC_FALSE;
+  if (!is_of_type(context_class, sc_type_node)) return SC_FALSE;
+
+  sc_iterator3* it_context_set = sc_iterator3_f_a_a_new(
+    s_default_ctx,
+    context_class,
+    sc_type_arc_pos_const_perm,
+    0 // any node
+  );
+
+  if (it_context_set == NULL) return SC_FALSE;
+
+  while (sc_iterator3_next(it_context_set) == SC_TRUE) {
+    sc_addr struct_from_set = sc_iterator3_value(it_context_set, 2);
+
+    if (in_struct(struct_from_set, element)) {
+      sc_iterator3_free(it_context_set);
+      return SC_TRUE;
+    }
+  }
+
+  sc_iterator3_free(it_context_set);
+  return SC_FALSE;
+}
+
+sc_bool not_in_context(sc_addr context, sc_addr element) {
+  return !(in_struct(context, element) || in_class(context, element));
+}
+
 void search_translation(sc_addr elem, sc_addr answer, sc_addr context_struct)
 {
     sc_iterator5 *it5;
@@ -31,9 +77,9 @@ void search_translation(sc_addr elem, sc_addr answer, sc_addr context_struct)
     {
         found = SC_TRUE;
 
-        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 0))
-                || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 0))
+                || not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
             continue;
 
         appendIntoAnswer(answer, sc_iterator5_value(it5, 0));
@@ -47,7 +93,7 @@ void search_translation(sc_addr elem, sc_addr answer, sc_addr context_struct)
                                      0);
         while (sc_iterator3_next(it3) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 2))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 1)) || not_in_context(context_struct, sc_iterator3_value(it3, 2))))
                 continue;
 
             // iterate input arcs for link
@@ -57,7 +103,7 @@ void search_translation(sc_addr elem, sc_addr answer, sc_addr context_struct)
                                          sc_iterator3_value(it3, 2));
             while (sc_iterator3_next(it4) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 0))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it4, 1)) || not_in_context(context_struct, sc_iterator3_value(it4, 0))))
                     continue;
                 if (sc_helper_check_arc(s_default_ctx, keynode_languages, sc_iterator3_value(it4, 0), sc_type_arc_pos_const_perm) == SC_TRUE)
                 {
@@ -74,7 +120,7 @@ void search_translation(sc_addr elem, sc_addr answer, sc_addr context_struct)
                                          sc_iterator3_value(it3, 1));
             while (sc_iterator3_next(it4) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 0)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 1))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it4, 0)) || not_in_context(context_struct, sc_iterator3_value(it4, 1))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it4, 0));
@@ -129,7 +175,7 @@ void search_nonbinary_relation(sc_addr elem, sc_addr answer, sc_addr context_str
         // if elem is a link of non-binary relation
         if (SC_TRUE == sc_helper_check_arc(s_default_ctx, keynode_nonbinary_relation, sc_iterator3_value(it1, 0), sc_type_arc_pos_const_perm))
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 0)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 1))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it1, 0)) || not_in_context(context_struct, sc_iterator3_value(it1, 1))))
                 continue;
 
             // iterate other elements of link
@@ -139,7 +185,7 @@ void search_nonbinary_relation(sc_addr elem, sc_addr answer, sc_addr context_str
                                          sc_type_node | sc_type_const);
             while (sc_iterator3_next(it2) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 2))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it2, 1)) || not_in_context(context_struct, sc_iterator3_value(it2, 2))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it2, 1));
@@ -154,7 +200,7 @@ void search_nonbinary_relation(sc_addr elem, sc_addr answer, sc_addr context_str
                                              sc_iterator3_value(it2, 1));
                 while (sc_iterator3_next(it3) == SC_TRUE)
                 {
-                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 0)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1))))
+                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 0)) || not_in_context(context_struct, sc_iterator3_value(it3, 1))))
                         continue;
 
                     sc_memory_get_element_type(s_default_ctx, sc_iterator3_value(it3, 0), &el_type);
@@ -198,7 +244,7 @@ void search_typical_sc_neighborhood(sc_addr elem, sc_addr answer, sc_addr contex
                                          0);
             while (sc_iterator3_next(it1) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 2))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it1, 1)) || not_in_context(context_struct, sc_iterator3_value(it1, 2))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it1, 1));
@@ -211,7 +257,7 @@ void search_typical_sc_neighborhood(sc_addr elem, sc_addr answer, sc_addr contex
             continue;
         }
 
-        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it0, 0)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it0, 1))))
+        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it0, 0)) || not_in_context(context_struct, sc_iterator3_value(it0, 1))))
             continue;
 
         it5 = sc_iterator5_f_a_f_a_f_new(s_default_ctx,
@@ -222,7 +268,7 @@ void search_typical_sc_neighborhood(sc_addr elem, sc_addr answer, sc_addr contex
                                          keynode_nrel_strict_inclusion);
         if (sc_iterator5_next(it5) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 1)) || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
                 continue;
 
             appendIntoAnswer(answer, sc_iterator3_value(it0, 0));
@@ -279,22 +325,24 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                                  0);
     if (sc_iterator3_next(it1) == SC_TRUE)
     {
-        //if (NOT_IN_CONTEXT(context_struct,sc_iterator3_value(it1, 2)))
+        //if (not_in_context_class(context_struct,sc_iterator3_value(it1, 2)))
         //context_struct = SC_FALSE;
 
-        appendIntoAnswer(answer, sc_iterator3_value(it1, 2));
+        sc_addr question_argument =  sc_iterator3_value(it1, 2);
 
-        search_translation(sc_iterator3_value(it1, 2), answer, context_struct);
-        search_arc_components(sc_iterator3_value(it1, 2), answer, context_struct);
+        appendIntoAnswer(answer, question_argument);
+
+        search_translation(question_argument, answer, context_struct);
+        search_arc_components(question_argument, answer, context_struct);
 
         // iterate input arcs
         it2 = sc_iterator3_a_a_f_new(s_default_ctx,
                                      0,
                                      0,
-                                     sc_iterator3_value(it1, 2));
+                                     question_argument);
         while (sc_iterator3_next(it2) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 0)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 1))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it2, 0)) || not_in_context(context_struct, sc_iterator3_value(it2, 1))))
                 continue;
 
             appendIntoAnswer(answer, sc_iterator3_value(it2, 0));
@@ -313,7 +361,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                 if (!(el_type & (sc_type_node_norole | sc_type_node_role)))
                     continue;
 
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 0))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 1)) || not_in_context(context_struct, sc_iterator3_value(it3, 0))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it3, 0));
@@ -338,7 +386,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                                                  0);
                     while (sc_iterator3_next(it4) == SC_TRUE)
                     {
-                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 2))))
+                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it4, 1)) || not_in_context(context_struct, sc_iterator3_value(it4, 2))))
                             continue;
 
                         appendIntoAnswer(answer, sc_iterator3_value(it4, 1));
@@ -355,8 +403,8 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                                                               sc_type_node | sc_type_const);
                         while (sc_iterator5_next(it_order) == SC_TRUE)
                         {
-                            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 2))
-                                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 3)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 4))))
+                            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it_order, 1)) || not_in_context(context_struct, sc_iterator5_value(it_order, 2))
+                                    || not_in_context(context_struct, sc_iterator5_value(it_order, 3)) || not_in_context(context_struct, sc_iterator5_value(it_order, 4))))
                                 continue;
 
                             if (SC_FALSE == sc_helper_check_arc(s_default_ctx, keynode_order_relation, sc_iterator5_value(it_order, 4), sc_type_arc_pos_const_perm))
@@ -383,8 +431,8 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                             if (!(el_type & sc_type_node_role))
                                 continue;
 
-                            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it6, 0))
-                                    || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it6, 1))))
+                            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it6, 0))
+                                    || not_in_context(context_struct, sc_iterator3_value(it6, 1))))
                                 continue;
 
                             appendIntoAnswer(answer, sc_iterator3_value(it6, 0));
@@ -412,10 +460,10 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                 // check if it's a quasy binary relation
                 if (sc_helper_check_arc(s_default_ctx, keynode_quasybinary_relation, sc_iterator5_value(it5, 4), sc_type_arc_pos_const_perm) == SC_TRUE)
                 {
-                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 2))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 4))))
+                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                            || not_in_context(context_struct, sc_iterator5_value(it5, 2))
+                            || not_in_context(context_struct, sc_iterator5_value(it5, 3))
+                            || not_in_context(context_struct, sc_iterator5_value(it5, 4))))
                         continue;
 
                     appendIntoAnswer(answer, sc_iterator5_value(it5, 1));
@@ -440,7 +488,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                                      0);
         while (sc_iterator3_next(it2) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 2))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it2, 1)) || not_in_context(context_struct, sc_iterator3_value(it2, 2))))
                 continue;
 
             appendIntoAnswer(answer, sc_iterator3_value(it2, 1));
@@ -459,7 +507,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                 if (!(el_type & (sc_type_node_norole | sc_type_node_role)))
                     continue;
 
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 0))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 1)) || not_in_context(context_struct, sc_iterator3_value(it3, 0))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it3, 0));
@@ -476,7 +524,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                                                            keynode_nrel_key_sc_element_base_order);
                     while (sc_iterator5_next(it_order2) == SC_TRUE)
                     {
-                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order2, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order2, 3))))
+                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it_order2, 1)) || not_in_context(context_struct, sc_iterator5_value(it_order2, 3))))
                             continue;
 
                         appendIntoAnswer(answer, sc_iterator5_value(it_order2, 1));
@@ -505,7 +553,7 @@ sc_result agent_search_full_semantic_neighborhood(const sc_event *event, sc_addr
                 {
                     if (sc_helper_check_arc(s_default_ctx, keynode_languages, sc_iterator3_value(it3, 0), sc_type_arc_pos_const_perm) == SC_TRUE)
                     {
-                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 0))))
+                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 1)) || not_in_context(context_struct, sc_iterator3_value(it3, 0))))
                             continue;
 
                         appendIntoAnswer(answer, sc_iterator3_value(it3, 0));
@@ -590,7 +638,7 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
 
     appendIntoAnswer(answer, param_elem);
 
-    //if (NOT_IN_CONTEXT(context_struct, param_elem) || NOT_IN_CONTEXT(context_struct, param_rel))
+    //if (not_in_context_class(context_struct, param_elem) || not_in_context_class(context_struct, param_rel))
     //context_struct = SC_FALSE;
 
     search_translation(param_elem, answer, context_struct);
@@ -607,9 +655,9 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                          param_rel);
         while (sc_iterator5_next(it5) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 0))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 0))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
                 continue;
 
             found = SC_TRUE;
@@ -629,8 +677,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                          0);
             while (sc_iterator3_next(it1) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 1))
-                        || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 2))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it1, 1))
+                        || not_in_context(context_struct, sc_iterator3_value(it1, 2))))
                     continue;
 
                 appendIntoAnswer(answer, sc_iterator3_value(it1, 1));
@@ -649,8 +697,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                                       sc_type_node | sc_type_const);
                 while (sc_iterator5_next(it_order) == SC_TRUE)
                 {
-                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 1)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 2))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 3)) || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it_order, 4))))
+                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it_order, 1)) || not_in_context(context_struct, sc_iterator5_value(it_order, 2))
+                            || not_in_context(context_struct, sc_iterator5_value(it_order, 3)) || not_in_context(context_struct, sc_iterator5_value(it_order, 4))))
                         continue;
 
                     if (SC_FALSE == sc_helper_check_arc(s_default_ctx, keynode_order_relation, sc_iterator5_value(it_order, 4), sc_type_arc_pos_const_perm))
@@ -676,8 +724,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                     if (!(el_type & sc_type_node_role))
                         continue;
 
-                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 0))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 1))))
+                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it2, 0))
+                            || not_in_context(context_struct, sc_iterator3_value(it2, 1))))
                         continue;
 
                     appendIntoAnswer(answer, sc_iterator3_value(it2, 0));
@@ -696,8 +744,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                      param_elem);
         while (sc_iterator3_next(it1) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 0))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 1))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it1, 0))
+                    || not_in_context(context_struct, sc_iterator3_value(it1, 1))))
                 continue;
 
             // search all parents in quasybinary relation
@@ -709,9 +757,9 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                              param_rel);
             if (sc_iterator5_next(it5) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                        || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 2))
-                        || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                        || not_in_context(context_struct, sc_iterator5_value(it5, 2))
+                        || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
                     continue;
 
                 found = SC_TRUE;
@@ -743,9 +791,9 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                          param_rel);
         while (sc_iterator5_next(it5) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 2))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 2))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
                 continue;
 
             found = SC_TRUE;
@@ -768,9 +816,9 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                          param_rel);
         while (sc_iterator5_next(it5) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 0))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 1))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator5_value(it5, 3))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator5_value(it5, 0))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 1))
+                    || not_in_context(context_struct, sc_iterator5_value(it5, 3))))
                 continue;
 
             found = SC_TRUE;
@@ -791,8 +839,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                      param_elem);
         while (sc_iterator3_next(it1) == SC_TRUE)
         {
-            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 0))
-                    || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it1, 1))))
+            if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it1, 0))
+                    || not_in_context(context_struct, sc_iterator3_value(it1, 1))))
                 continue;
 
             // Iterate input arcs for input element
@@ -802,7 +850,7 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                          sc_iterator3_value(it1, 0));
             if (sc_iterator3_next(it2) == SC_TRUE)
             {
-                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it2, 1))))
+                if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it2, 1))))
                     continue;
 
                 found = SC_TRUE;
@@ -817,8 +865,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                              sc_type_const);
                 while (sc_iterator3_next(it3) == SC_TRUE)
                 {
-                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 1))
-                            || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it3, 2))))
+                    if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it3, 1))
+                            || not_in_context(context_struct, sc_iterator3_value(it3, 2))))
                         continue;
 
                     appendIntoAnswer(answer, sc_iterator3_value(it3, 1));
@@ -834,8 +882,8 @@ sc_result agent_search_links_of_relation_connected_with_element(const sc_event *
                                                  sc_iterator3_value(it3, 1));
                     while (sc_iterator3_next(it4) == SC_TRUE)
                     {
-                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 0))
-                                || NOT_IN_CONTEXT(context_struct, sc_iterator3_value(it4, 1))))
+                        if (SC_ADDR_IS_NOT_EMPTY(context_struct) && (not_in_context(context_struct, sc_iterator3_value(it4, 0))
+                                || not_in_context(context_struct, sc_iterator3_value(it4, 1))))
                             continue;
 
                         appendIntoAnswer(answer, sc_iterator3_value(it4, 0));
