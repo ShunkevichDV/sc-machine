@@ -11,7 +11,8 @@ set(SC_MACHINE_THIRDPARTY_PATH "${SC_MACHINE_ROOT}/thirdparty")
 option (SC_AUTO_TEST "Flag to build for automation testing" OFF)
 option (SC_KPM_SCP "Flag to build SCP module" OFF)
 option (SC_BUILD_SCTP "Flag to turn on/off sctp protocol support" ON)
-option (SC_BUILD_TESTS "Flag to build unit tests" OFF)
+# Flag to build unit tests. Option is replaced with set because of option unpredictable behavior
+set(SC_BUILD_TESTS OFF)
 
 # codegen
 if (${UNIX})
@@ -88,6 +89,14 @@ if (${APPLE})
     include_directories("${CMAKE_OSX_SYSROOT}/usr/include")
 
 elseif (${UNIX})
+    function(getLibVersion libName resultVar)
+        execute_process(COMMAND /usr/bin/dpkg -s "${libName}"
+                        COMMAND /bin/grep -oP "(?<=Version:\\s)([\\d\\.]+)(?=)"
+                        OUTPUT_VARIABLE tempVar
+                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set(${resultVar} ${tempVar} PARENT_SCOPE)
+    endfunction()
+
     find_package(PythonLibs 3.4 REQUIRED)
 
     string(REPLACE "." ";" PY_VERSION_LIST ${PYTHONLIBS_VERSION_STRING})
@@ -96,8 +105,9 @@ elseif (${UNIX})
 
     set(PY_SHORT_VERSION "${PY_VERSION_MAJOR}${PY_VERSION_MINOR}")
 
-    if (${PY_SHORT_VERSION} GREATER_EQUAL "38")
-        find_package(Boost 1.54 REQUIRED COMPONENTS filesystem python)
+    getLibVersion(libboost-python-dev BOOST_PYTHON_VER)
+    if ("${BOOST_PYTHON_VER}" STRGREATER "1.71")
+        find_package(Boost 1.54 REQUIRED COMPONENTS filesystem python${PY_SHORT_VERSION})
     else ()
         find_package(Boost 1.54 REQUIRED COMPONENTS filesystem python-py${PY_SHORT_VERSION})
     endif()
@@ -219,21 +229,28 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/thirdparty)
 if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib)
 	execute_process(
 			COMMAND mkdir -p generated/lib
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-			OUTPUT_VARIABLE GIT_VERSION)
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()
 
+set(CATCH2_VER v2.13.2)
 if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib/Catch2)
 	execute_process(
-			COMMAND git clone https://github.com/catchorg/Catch2.git
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib
-			OUTPUT_VARIABLE GIT_VERSION)
+			COMMAND git clone --depth 1 --branch ${CATCH2_VER} https://github.com/catchorg/Catch2.git
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib)
 	execute_process(
 			COMMAND cmake -Bbuild -H. -DBUILD_TESTING=OFF
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib/Catch2
-			OUTPUT_VARIABLE GIT_VERSION)
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib/Catch2)
 	execute_process(
 			COMMAND sudo -S cmake --build build/ --target install
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib/Catch2
-			OUTPUT_VARIABLE GIT_VERSION)
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/generated/lib/Catch2)
 endif ()
+
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/log)
+	execute_process(
+			COMMAND mkdir log
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+endif ()
+set(LOG_DIR ${CMAKE_CURRENT_SOURCE_DIR}/log/)
+set(LOG_MODE Info)
+set(LOG_OUTPUT_TYPE Console)
+configure_file(log_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/sc-memory/sc-memory/generated/log_config.hpp @ONLY)
