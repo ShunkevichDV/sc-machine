@@ -171,6 +171,8 @@ public:
 
 private:
   RealType m_realType;
+public:
+    RealType getMRealType() const;
 
 public:
   static ScType const EdgeUCommon;

@@ -66,3 +66,7 @@ ScType const ScType::NodeVarNoRole(sc_type_node | sc_type_var | sc_type_node_nor
 ScType const ScType::NodeVarClass(sc_type_node | sc_type_var | sc_type_node_class);
 ScType const ScType::NodeVarAbstract(sc_type_node | sc_type_var | sc_type_node_abstract);
 ScType const ScType::NodeVarMaterial(sc_type_node | sc_type_var | sc_type_node_material);
+
+ScType::RealType ScType::getMRealType() const {
+    return m_realType;
+}
