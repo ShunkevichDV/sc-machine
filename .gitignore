@@ -5,6 +5,8 @@ log
 scripts/redis*
 cmake-build-debug/*
 cmake-build-debug
+sc-kpm/sc-python/services/common/__pycache__/
+sc-kpm/sc-python/services/http_api/__pycache__/
 
 tools/builder/src/parser/
 *.generated.*

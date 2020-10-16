@@ -70,17 +70,6 @@ protected:
       {
         ResolveElement(el);
       }
-//        if (!el.GetType().IsEdge() &&
-//            !scs::TypeResolver::IsKeynodeType(el.GetIdtf()))
-//        {
-//            if (m_idtfCache.find(el.GetIdtf()) == m_idtfCache.end()) {
-//                ResolveElement(el);
-//            }
-//            else {
-//                ScType const & type = el.GetType();
-//                if ()
-//            }
-//        }
     });
   }
 
