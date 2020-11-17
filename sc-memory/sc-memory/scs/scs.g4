@@ -190,9 +190,9 @@ idtf_lvl1 returns [ElementHandle handle]
   ;
 
 idtf_edge returns [ElementHandle handle]
-  : '(' src=idtf_system
+  : '(' src=idtf_common
         c=connector attrs=attr_list?
-        trg=idtf_system
+        trg=idtf_common
     ')'
 
     {
